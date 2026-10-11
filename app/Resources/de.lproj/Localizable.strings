@@ -1,0 +1,168 @@
+/* MarioVision - German. Used only when the device itself is set to German;
+   every other language falls back to en.lproj. */
+
+"SM64 Vision" = "SM64 Vision";
+"Start" = "Start";
+"Settings" = "Einstellungen";
+"Resume" = "Fortsetzen";
+"Running" = "Läuft";
+"Loading…" = "Lädt …";
+"Starts straight into the castle and skips the intro. This window closes as it does — the menu button on the controller brings it back." = "Startet direkt ins Schloss und überspringt das Intro. Dieses Fenster schließt sich dabei — die Menütaste am Controller holt es zurück.";
+"The game keeps running, you just can't see it. “Resume” brings it back as %@." = "Das Spiel läuft weiter, du hörst es nur. Mit „Fortsetzen“ holst du es als %@ zurück.";
+"2D Window" = "2D-Fenster";
+"3D Window" = "3D-Fenster";
+"3D Portal" = "3D-Portal";
+"3rd-Person VR" = "3rd-Person-VR";
+"VR (First Person)" = "VR (Ich-Perspektive)";
+"%@ (Beta)" = "%@ (Beta)";
+"The game in a flat window, as on a screen." = "Das Spiel in einem flachen Fenster, wie auf einem Bildschirm.";
+"A screen with depth: the framing stays the game's own, but it sits in space in front of you instead of flat on the glass." = "Ein Bildschirm mit Tiefe: der Bildausschnitt bleibt der des Spiels, liegt aber räumlich vor dir statt flach auf der Scheibe.";
+"A window into the world. The camera sits on the glass — move your head and you see past it, sideways." = "Ein Fenster in die Welt. Die Kamera sitzt auf der Scheibe — bewegst du den Kopf, siehst du seitlich daran vorbei.";
+"Like the portal, without the frame: the world fills your whole field of view." = "Wie das Portal, nur ohne Rahmen: die Welt füllt dein ganzes Sichtfeld.";
+"You stand where the character stands. He walks where you look; the right stick turns your heading in 30° steps. Of him, only the shadow remains." = "Du stehst, wo die Figur steht. Sie läuft dorthin, wo du hinsiehst; der rechte Stick dreht die Blickrichtung in 30°-Schritten. Von ihm selbst bleibt nur der Schatten.";
+"Render mode" = "Rendermodus";
+"Presentation" = "Darstellung";
+"Can be switched while the game is running." = "Lässt sich im laufenden Spiel umschalten.";
+"Graphics" = "Grafik";
+"Stereo" = "Stereo";
+"Depth" = "Tiefe";
+"Focal plane" = "Fokusebene";
+"Image quality" = "Bildqualität";
+"Antialiasing" = "Kantenglättung";
+"Off" = "Aus";
+"Supersampling" = "Überabtastung";
+"HUD in VR" = "HUD im VR-Modus";
+"Size" = "Größe";
+"Height" = "Höhe";
+"How far apart the two eyes sit. 1.00 would be physically correct in the portal, but the world behind it is greatly reduced and reads as flat — 1.50 gives it depth. The 3D window works at a different scale and is far more sensitive: there the near field decides, and a little is a lot. No effect in the 2D window." = "Wie weit die beiden Augen auseinanderliegen. 1,00 wäre im Portal physikalisch korrekt, aber die Welt darin ist stark verkleinert und wirkt damit flach — 1,50 gibt ihr Tiefe. Im 3D-Fenster ist der Maßstab ein anderer und deutlich empfindlicher: dort entscheidet der Nahbereich, und schon wenig ist viel. Ohne Wirkung im 2D-Fenster.";
+"3D window only: the distance at which both images coincide. Nearer things step out of the screen, further ones lie behind it. Set too far forward the background becomes unpleasant; too far back, the foreground. About 1000 is the character's distance from the camera." = "Nur im 3D-Fenster: die Entfernung, in der beide Bilder deckungsgleich sind. Näheres tritt aus dem Bildschirm heraus, Entfernteres liegt dahinter. Steht sie zu weit vorn, wird der Hintergrund unangenehm; zu weit hinten, der Vordergrund. Etwa 1000 entspricht dem Abstand der Figur zur Kamera.";
+"Smooths polygon edges. Takes effect at once. No function in the simulator — Metal rejects the depth resolve there." = "Glättet Polygonkanten. Wirkt sofort. Im Simulator ohne Funktion — dort lehnt Metal die Tiefenauflösung ab.";
+"Renders into a correspondingly larger texture and averages it down. The most effective lever against ragged edges, because it also works inside textures and at the window's own edge. The cost rises with the square — at 2.00 therefore fourfold." = "Rendert in eine entsprechend größere Textur und mittelt sie herunter. Der wirksamste Hebel gegen kantige Ränder, weil er auch innerhalb von Texturen und an der Fensterkante selbst greift. Der Aufwand steigt im Quadrat — bei 2,00 also vierfach.";
+"The compositor's render resolution would be the strongest lever, but it cannot be raised here: any value above the platform's own stops the layer from starting." = "Die Renderauflösung des Compositors wäre der stärkste Hebel, lässt sich hier aber nicht anheben: jeder Wert oberhalb des Plattformwerts verhindert, dass die Ebene startet.";
+"Both VR modes. The readouts keep the arrangement the game gives them — the pane they are laid onto simply grows, which pushes the corners apart in both directions at once. Takes effect at once." = "Beide VR-Modi. Die Anzeigen behalten ihre Anordnung aus dem Spiel — die Fläche, auf die sie gelegt werden, wird größer, wodurch die Ecken in beide Richtungen auseinanderrücken. Wirkt sofort.";
+"SM64 Vision needs your own, unmodified ROM of the US release. It is copied into the app's folder once and never passed on." = "SM64 Vision braucht eine eigene, unveränderte ROM der US-Fassung. Sie wird einmalig in den App-Ordner kopiert und nicht weitergegeben.";
+"Choose ROM…" = "ROM auswählen …";
+
+/* ROM setup errors */
+"The file could not be read." = "Die Datei konnte nicht gelesen werden.";
+"That is not an unmodified US ROM (MD5 %@). Only the US release is supported." = "Das ist keine unveränderte US-ROM (MD5 %@). Unterstützt wird ausschließlich die US-Fassung.";
+
+/* Jump tilt */
+"Jump tilt" = "Neigung beim Springen";
+"Angle" = "Winkel";
+"Speed" = "Geschwindigkeit";
+"Duration" = "Dauer";
+"First-person VR only. Off the ground the view eases downwards, so the ground ahead comes into sight without you having to look for it mid-jump. Duration is how long a jump holds the tilt before it lets go again — a long fall should not leave the horizon leaning. Angle at 0° switches it off." = "Nur in der Ich-Perspektive. Sobald du vom Boden bist, neigt sich die Sicht sanft nach unten, damit der Boden vor dir ins Blickfeld kommt, ohne dass du im Sprung danach suchen musst. Die Dauer bestimmt, wie lange ein Sprung die Neigung hält, bevor sie von selbst zurückgeht — ein langer Fall soll den Horizont nicht dauerhaft schief lassen. Winkel auf 0° schaltet es ab.";
+"Tilt on jumping" = "Neigung beim Springen";
+"Snap instead of easing" = "Springen statt gleiten";
+"First-person VR only. Off the ground the view eases downwards, so the ground ahead comes into sight without you having to look for it mid-jump. Duration is how long a jump holds the tilt before it lets go again — a long fall should not leave the horizon leaning. Snapping arrives at once and ignores the speed." = "Nur in der Ich-Perspektive. Sobald du vom Boden bist, neigt sich die Sicht sanft nach unten, damit der Boden vor dir ins Blickfeld kommt, ohne dass du im Sprung danach suchen musst. Die Dauer bestimmt, wie lange ein Sprung die Neigung hält, bevor sie von selbst zurückgeht — ein langer Fall soll den Horizont nicht dauerhaft schief lassen. Springen erreicht den Winkel sofort und übergeht die Geschwindigkeit.";
+
+/* Game data */
+"Game data" = "Spieldaten";
+"Replace game data…" = "Spieldaten austauschen …";
+"Accepted. Restart the app for it to take effect." = "Angenommen. Zum Wirksamwerden die App neu starten.";
+"Currently running the review scene instead of a game. Choosing a ROM image switches back." = "Zurzeit läuft die Prüfszene statt eines Spiels. Mit der Auswahl eines ROM-Abbilds geht es zurück.";
+"Choose a different ROM image, for instance after replacing the file. Takes effect on the next launch." = "Ein anderes ROM-Abbild auswählen, etwa nach dem Austausch der Datei. Wirkt beim nächsten Start.";
+
+/* Controls */
+"Controls" = "Steuerung";
+"Swimming" = "Schwimmen";
+"Punching" = "Schlagen";
+"Carrying" = "Tragen";
+"Picking things up" = "Aufheben";
+"With your body" = "Mit dem Körper";
+"With a button" = "Mit einer Taste";
+"Either" = "Beides";
+"Breaststroke with both hands at once, or the jump button, as the game has always had it. A long swim is tiring done properly, so both are allowed to begin with." = "Brustschwimmen mit beiden Händen zugleich, oder die Sprungtaste wie eh und je. Ein langer Weg ist mit echten Zügen anstrengend, deshalb ist anfangs beides erlaubt.";
+"Throw the punch, or press the button for it. Leaving the button on while the arm does the same job means the same act has two ways of happening — and the easier one wins, which rather defeats the arm." = "Den Schlag ausführen, oder die Taste dafür drücken. Lässt man die Taste an, während der Arm dasselbe tut, hat dieselbe Handlung zwei Wege — und der bequemere gewinnt, was den Arm überflüssig macht.";
+"Reach out and squeeze the trigger, or dive into things the way the game intends. The button covers punching too — in the original they are the same button, and it cannot be split." = "Hinlangen und den Trigger drücken, oder hineinhechten wie im Original vorgesehen. Die Taste deckt auch das Schlagen ab — im Original ist es dieselbe, und das lässt sich nicht trennen.";
+
+/* Diagnostics */
+"Diagnostics" = "Diagnose";
+"Name each gesture" = "Jede Geste benennen";
+"Shows what was just recognised in the game's own message banner. A gesture that does nothing and a gesture that was never seen look identical from inside a headset — this tells them apart, and is worth switching on whenever something feels unresponsive." = "Zeigt im Meldungsband des Spiels, was gerade erkannt wurde. Eine Geste, die nichts bewirkt, und eine, die nie gesehen wurde, sehen von innen gleich aus — das unterscheidet sie und lohnt sich immer dann, wenn etwas nicht zu reagieren scheint.";
+"Start in the Bowser fight" = "Im Bowserkampf starten";
+"Skips straight there on the next start. Reaching that fight properly costs eight stars and several minutes, which is a poor way to spend an evening tuning one gesture." = "Springt beim nächsten Start direkt dorthin. Diesen Kampf ordentlich zu erreichen kostet acht Sterne und einige Minuten — eine schlechte Art, einen Abend mit dem Feinschliff einer Geste zu verbringen.";
+
+/* Debug */
+"Debug" = "Debug";
+"Gestures" = "Gesten";
+"Getting about" = "Fortbewegung";
+"Teleport to a level" = "In ein Level springen";
+"Teleport" = "Sprung";
+"Levels" = "Level";
+"Favourites" = "Favoriten";
+"Everywhere else" = "Alles Übrige";
+"Only once a game is running — before that there is nothing to warp out of." = "Erst wenn ein Spiel läuft — vorher gibt es nichts, aus dem man springen könnte.";
+"The star keeps one to hand. Jumping takes effect at once, so the launcher closes with it." = "Der Stern behält eines griffbereit. Der Sprung wirkt sofort, deshalb schließt sich dieses Fenster dabei.";
+"Shows what was just recognised in the game's own message banner. A gesture that does nothing and a gesture that was never seen look identical from inside a headset — this tells them apart." = "Zeigt im Meldungsband des Spiels, was gerade erkannt wurde. Eine Geste, die nichts bewirkt, und eine, die nie gesehen wurde, sehen von innen gleich aus — das unterscheidet sie.";
+
+/* HD textures */
+"High-definition textures" = "Hochauflösende Texturen";
+"Download the HD textures" = "HD-Texturen herunterladen";
+"Downloading…" = "Wird geladen …";
+"Unpacking…" = "Wird entpackt …";
+"Installed" = "Installiert";
+"Remove" = "Entfernen";
+"Try again" = "Erneut versuchen";
+"The Render96 pack, six hundred megabytes of hand-made replacements for the original textures. Not shipped with the app — it is somebody else's work under its own licence — so it is fetched on request. Takes effect on the next start, because the game looks for packs only as it comes up." = "Das Render96-Paket, sechshundert Megabyte handgemachter Ersatz für die Originaltexturen. Nicht Teil der App — es ist fremde Arbeit unter eigener Lizenz — und wird deshalb auf Wunsch geholt. Wirkt beim nächsten Start, denn das Spiel sucht nur beim Hochfahren nach Paketen.";
+"Packs in use" = "Genutzte Pakete";
+"None found. A pack copied in while the game is running is only noticed on the next start — the folders are read once, as it comes up." = "Keines gefunden. Ein Paket, das während des laufenden Spiels hineinkopiert wurde, fällt erst beim nächsten Start auf — die Ordner werden einmal gelesen, beim Hochfahren.";
+"Downloading a pack does not switch it on: the game takes a new one in disabled, by its own rule. Switching one on takes effect at once for anything drawn afterwards." = "Ein Paket herunterzuladen schaltet es nicht ein: das Spiel nimmt ein neues nach eigener Regel ausgeschaltet auf. Das Einschalten wirkt sofort für alles, was danach gezeichnet wird.";
+"The Render96 pack, six hundred megabytes of hand-made replacements for the original textures. Not shipped with the app — it is somebody else's work under its own licence — so it is fetched on request." = "Das Render96-Paket, sechshundert Megabyte handgemachter Ersatz für die Originaltexturen. Nicht Teil der App — es ist fremde Arbeit unter eigener Lizenz — und wird deshalb auf Wunsch geholt.";
+
+/* Mods */
+"Mods" = "Mods";
+"Packs found" = "Gefundene Pakete";
+"None yet." = "Noch keine.";
+"The Render96 pack: six hundred megabytes of hand-made replacements for the original textures. Not shipped with the app — it is somebody else's work under its own licence — so it is fetched on request." = "Das Render96-Paket: sechshundert Megabyte handgemachter Ersatz für die Originaltexturen. Nicht Teil der App — es ist fremde Arbeit unter eigener Lizenz — und wird deshalb auf Wunsch geholt.";
+"Downloading one does not switch it on — the game takes a new pack in disabled, by its own rule. Switching one on applies to everything drawn from then on, so the level you are standing in keeps its old look until you leave it." = "Ein Paket herunterzuladen schaltet es nicht ein — das Spiel nimmt ein neues nach eigener Regel ausgeschaltet auf. Das Einschalten gilt für alles, was danach gezeichnet wird; das Level, in dem du gerade stehst, behält sein altes Aussehen, bis du es verlässt.";
+"Switch it on below. If it is not listed yet, the game is still reading the folders — that takes a moment after a download this size." = "Unten einschalten. Steht es noch nicht in der Liste, liest das Spiel die Ordner gerade ein — nach einem Download dieser Größe dauert das einen Moment.";
+
+/* Doors */
+"Doors" = "Türen";
+"Open doors by hand" = "Türen mit der Hand öffnen";
+"Take hold of the door and swing it yourself, then walk through when it is open. Off, and walking into a door opens it as it always did — which is the only way to play sitting down, or with an ordinary pad." = "Die Tür anfassen, selbst aufschwingen und hindurchgehen, wenn sie offen ist. Aus, und gegen eine Tür zu laufen öffnet sie wie eh und je — was die einzige Möglichkeit ist, im Sitzen oder mit einem gewöhnlichen Controller zu spielen.";
+
+/* Mods */
+"Cancel" = "Abbrechen";
+
+/* Graphics */
+"Textures" = "Texturen";
+"Smooth distant textures" = "Ferne Texturen glätten";
+"Keeps reduced copies of every texture for surfaces seen far away. Without them a distant floor is resampled afresh each frame and appears to crawl — which multisampling cannot help, since it happens inside a surface rather than at its edge. The console had none, and with its own small textures hardly needed them." = "Hält von jeder Textur verkleinerte Fassungen für weit entfernte Flächen bereit. Ohne sie wird ein ferner Boden in jedem Bild neu abgetastet und scheint zu kriechen — wogegen Kantenglättung nichts ausrichtet, weil es innerhalb einer Fläche geschieht und nicht an ihrem Rand. Die Konsole hatte keine und brauchte bei ihren kleinen Texturen auch kaum welche.";
+
+/* Climbing and flying */
+"Climbing" = "Klettern";
+"Climb by holding on" = "Klettern durch Festhalten";
+"Reach for a pole or a tree, squeeze, and pull your hand down: you rise by as far as your hand came down, then reach higher with the other. At the top he goes into a handstand and the view turns over with him. Let go, or press the jump button, to push off. Off, Mario grabs a pole by jumping into it and climbs with the stick." = "Nach einer Stange oder einem Baum greifen, zudrücken und die Hand nach unten ziehen: Du steigst genau so weit, wie die Hand heruntergekommen ist, und greifst dann mit der anderen höher. Oben geht er in den Handstand, und das Bild dreht sich mit. Loslassen oder die Sprungtaste drücken stößt dich ab. Aus greift Mario eine Stange, indem er hineinspringt, und klettert mit dem Stick.";
+"Flying" = "Fliegen";
+"Fly in first person" = "Aus der Ego-Perspektive fliegen";
+"A wing cap banks and rolls with no say from you, which is the quickest way to feel unwell in a headset — so the view moves behind Mario for the duration. Turn this on to stay inside his head." = "Die Flügelkappe legt sich in die Kurve, ohne dass du etwas dazu zu sagen hättest — der schnellste Weg, sich in einer Brille unwohl zu fühlen. Deshalb geht die Sicht so lange hinter Mario. Einschalten, um in seinem Kopf zu bleiben.";
+
+/* Ledges */
+"Ledges" = "Kanten";
+"Catching an edge" = "An einer Kante";
+"Automatic, from his eyes" = "Automatisch, aus seinen Augen";
+"Automatic, from behind" = "Automatisch, von hinten";
+"By hand" = "Mit den Händen";
+"Hanging from a ledge, the game pulls Mario up by itself — from his eyes, or from behind him, where you can see what you are hanging on. By hand, you hold on with the triggers, shove yourself sideways along the edge, and pull a hand down to haul yourself over it. Shuffling sideways is not something the game has; where the edge runs out, you simply stop." = "An einer Kante zieht das Spiel Mario von selbst hoch — aus seinen Augen oder von hinten, wo du siehst, woran du hängst. Mit den Händen hältst du dich an den Triggern fest, schiebst dich seitwärts die Kante entlang und ziehst eine Hand nach unten, um dich hinaufzuziehen. Das Seitwärtshangeln kennt das Spiel nicht; wo die Kante aufhört, ist einfach Schluss.";
+"Hanging from a ledge, the game pulls Mario up by itself — from his eyes, or from behind him, where you can see what you are hanging on." = "An einer Kante zieht das Spiel Mario von selbst hoch — aus seinen Augen oder von hinten, wo du siehst, woran du hängst.";
+
+/* Ceilings */
+"Ceilings" = "Decken";
+"Hanging from a ceiling" = "An einer Decke";
+"Working along a ceiling by hand, from his eyes or from behind him. From behind you can see what you are hanging from and where the ceiling runs out; from his eyes both are above and behind the view." = "Sich an einer Decke entlanghangeln, aus seinen Augen oder von hinten. Von hinten siehst du, woran du hängst und wo die Decke aufhört; aus seinen Augen liegt beides über und hinter dem Blickfeld.";
+
+/* Feedback */
+"Feedback" = "Rückmeldung";
+"This is a proof of concept." = "Das hier ist ein Machbarkeitsnachweis.";
+"It is far from completely tested. Whole parts of the game have never been played through in a headset, and the things that are new here — swinging doors by hand, climbing a tree, throwing what you are holding — were built against a handful of evenings' worth of trying them out. Expect to find something wrong." = "Es ist bei Weitem nicht vollständig getestet. Ganze Teile des Spiels wurden in der Brille noch nie durchgespielt, und was hier neu ist — Türen von Hand aufschwingen, auf einen Baum klettern, werfen, was man hält — ist gegen eine Handvoll Abende Ausprobieren entstanden. Rechne damit, etwas zu finden, das nicht stimmt.";
+"Reporting something" = "Etwas melden";
+"Bugs, and anything that feels wrong, belong on the project page. What helps most: which level you were in, what you were doing, and whether it happens every time." = "Fehler und alles, was sich falsch anfühlt, gehören auf die Projektseite. Am meisten hilft: in welchem Level du warst, was du gerade getan hast, und ob es jedes Mal passiert.";
+"Open the project on GitHub" = "Projektseite auf GitHub öffnen";
+
+/* Pack notes */
+"Replaces the shape of the smoke that rises when Mario is on fire, correcting a fault in the original. Comes with the game. Worth having alongside the HD textures, which repaint that smoke but leave its shape as it was." = "Ersetzt die Form des Rauchs, der aufsteigt, wenn Mario brennt, und behebt damit einen Fehler des Originals. Kommt mit dem Spiel. Auch neben den HD-Texturen sinnvoll: die malen diesen Rauch neu, lassen seine Form aber, wie sie war.";
+"Hand-made replacements for the game's textures — 2723 of them, at many times the original resolution. Textures only: no models are changed. Six hundred megabytes, fetched on request." = "Von Hand gemachte Ersatztexturen für das Spiel — 2723 Stück, in einem Vielfachen der Originalauflösung. Nur Texturen, kein Modell wird verändert. Sechshundert Megabyte, werden auf Wunsch geladen.";
+"What this pack changes" = "Was dieses Paket ändert";

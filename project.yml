@@ -1,0 +1,299 @@
+name: MarioVision
+
+options:
+  bundleIdPrefix: de.martek
+  deploymentTarget:
+    visionOS: "26.0"
+  createIntermediateGroups: true
+
+targets:
+  MarioVision:
+    type: application
+    platform: visionOS
+
+    sources:
+      - path: app/Sources
+      # en.lproj / de.lproj. XcodeGen turns the matching .lproj directories into
+      # one localised variant group by itself.
+      - path: app/Resources
+
+    info:
+      path: app/Info.plist
+      properties:
+        CFBundleDisplayName: SM64 Vision
+        CFBundleName: SM64 Vision
+        # English is the development language, so it is also what any device
+        # that is not German falls back to.
+        CFBundleDevelopmentRegion: en
+        # Both point at the build settings below rather than carrying literals.
+        # The release build writes CURRENT_PROJECT_VERSION on every run; with a
+        # literal here that write would have no effect and every upload after the
+        # first would be rejected as a duplicate build number.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UIApplicationSceneManifest:
+          UIApplicationPreferredDefaultSceneSessionRole: UIWindowSceneSessionRoleApplication
+          UIApplicationSupportsMultipleScenes: true
+        UILaunchScreen: {}
+
+        # No encryption beyond what the OS itself provides, so the app is exempt
+        # under the US export rules. Declared here rather than answered by hand
+        # on every single upload - without it each uploaded build is held
+        # back until someone clicks through the compliance questions.
+        ITSAppUsesNonExemptEncryption: false
+        # The game synthesises audio on its own thread and mixes with whatever
+        # else the wearer has playing; see audio_avf.m.
+        # No background audio. It was added while the sound cutting out was
+        # still thought to be a lifecycle problem; the actual cause was the
+        # audio engine stopping and never being restarted, which is handled in
+        # audio_avf.m. Left in, it kept the app alive and playing after the user
+        # had closed it.
+        UIBackgroundModes: []
+
+        # Without these the system does not route controller input to the app
+        # at all - which is why on the device only Start (the button the system
+        # forwards regardless) came through. Values copied from
+        # KeynoteEnvViewer, where a DualSense verifiably works:
+        # GCSupportsControllerUserInteraction must be TRUE - it declares "this
+        # app takes controller input", not "the system may navigate with it".
+        GCSupportsControllerUserInteraction: true
+        # GCRequiresControllerUserInteraction is gone: Apple rejects
+        # the upload over its type ("Type Mismatch", 90039), and Xcode does not
+        # even carry a definition for it. Its value here was false, which is what
+        # its absence means anyway - the app does not require a controller, it
+        # only accepts one. That declaration is GCSupportsControllerUserInteraction
+        # above, which stays.
+        GCSupportedGameControllers:
+          - ProfileName: ExtendedGamepad
+          # Without this the system hands the Sense pair over as a single
+          # coalesced MFi gamepad and never vends it as spatial accessories -
+          # measured on device, where GCSpatialAccessory answered with zero
+          # while the pair sat in the ordinary controller list under the name
+          # "PlayStation VR2 Sense Controllers (L/R)", category MFi. The
+          # gamepad profile stays alongside it: locomotion still comes through
+          # that handle, and a session with a DualSense must be unaffected.
+          - ProfileName: SpatialGamepad
+          # And the smaller profiles. A Switch N64 controller turns up with no
+          # extended gamepad at all, and a pad the app never says it supports is
+          # a pad the system has no reason to hand over in full.
+          - ProfileName: MicroGamepad
+          - ProfileName: DirectionalGamepad
+
+        # Tracked controllers. Without this the accessory provider is refused
+        # authorization and run() throws - a failure that names the data
+        # provider and says nothing about a missing plist key, so it is worth
+        # knowing that this is where it comes from.
+        #
+        # It has to live here, not in app/Info.plist: that file is generated
+        # from this one, so an edit there survives exactly until the next
+        # XcodeGen run.
+        NSAccessoryTrackingUsageDescription: >-
+          SM64 Vision follows your controllers so your hands appear where you
+          are actually holding them.
+        # Tracking an accessory means locating it in the room, so the world
+        # sensing permission comes with it.
+        NSWorldSensingUsageDescription: >-
+          SM64 Vision needs to know where your controllers are in the room to
+          place your hands correctly.
+
+    # DEVELOPMENT_TEAM and PRODUCT_BUNDLE_IDENTIFIER live in there, not in the
+    # settings below: a target setting beats an xcconfig, so naming them here
+    # would make the local override in Config/Local.xcconfig do nothing.
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+
+    settings:
+      base:
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+        SWIFT_VERSION: "5.0"
+        SWIFT_OBJC_BRIDGING_HEADER: app/Sources/MarioVision-Bridging-Header.h
+
+        # The bridging header pulls in mariovision_platform.h by its in-tree path.
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/sm64coopdx/src
+          - $(SRCROOT)/sm64coopdx/include
+
+        # libsm64coopdx.a must be -force_load'ed, not just -l'd.
+        #
+        # coopdx registers its ROM assets - audio sequences and banks among them
+        # - from __attribute__((constructor)) functions (see
+        # src/pc/rom_assets.h). The upstream build links every object file
+        # directly, so every constructor runs. Out of a static archive the
+        # linker only pulls objects that something references, and an object
+        # whose only contribution is a constructor gets dropped: the asset
+        # arrays then stay zeroed, and the audio sequence player runs off into
+        # them and never returns.
+        #
+        # -lc++ is explicit because the app target has no C++ sources of its
+        # own, so Xcode would not link the C++ runtime - but coopdx has several
+        # C++ translation units (mod_fs, lighting_engine, rom_checker).
+        "OTHER_LDFLAGS[sdk=xros*]":
+          - -force_load
+          - $(SRCROOT)/sm64coopdx/build/us_xros/libsm64coopdx.a
+          - -llua53
+          - -lz
+          - -lc++
+        "OTHER_LDFLAGS[sdk=xrsimulator*]":
+          - -force_load
+          - $(SRCROOT)/sm64coopdx/build/us_xrsimulator/libsm64coopdx.a
+          - -llua53
+          - -lz
+          - -lc++
+
+        # Lua is built per platform too, so its search path follows the SDK.
+        "LIBRARY_SEARCH_PATHS[sdk=xros*]":
+          - $(SRCROOT)/sm64coopdx/lib/lua/xros
+        "LIBRARY_SEARCH_PATHS[sdk=xrsimulator*]":
+          - $(SRCROOT)/sm64coopdx/lib/lua/xrsimulator
+
+        # coopdx is C with a few C++ translation units, so the C++ runtime has
+        # to come along.
+        CLANG_CXX_LIBRARY: libc++
+
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+      configs:
+        debug:
+          ONLY_ACTIVE_ARCH: YES
+          # coopdx loads every bundled mod at startup, one step per rendered
+          # frame. In the simulator that is several minutes before the main menu
+          # appears, which makes iterating unworkable. The mods are optional
+          # example content and change nothing about vanilla play.
+          MARIOVISION_BUNDLE_OPTIONAL_MODS: NO
+        release:
+          MARIOVISION_BUNDLE_OPTIONAL_MODS: YES
+
+    dependencies:
+      - sdk: Metal.framework
+      - sdk: QuartzCore.framework
+      - sdk: AVFoundation.framework
+      - sdk: GameController.framework
+      - sdk: UIKit.framework
+      - sdk: CompositorServices.framework
+      # ARKit came in implicitly through Swift's import while only head
+      # tracking used it. Tracked controllers make it load-bearing, so it is
+      # named here rather than left to chance.
+      - sdk: ARKit.framework
+      - sdk: CoreHaptics.framework
+
+    preBuildScripts:
+      - name: Build sm64coopdx static library
+        basedOnDependencyAnalysis: false
+        # Declared so Xcode knows this phase produces the archive that
+        # OTHER_LDFLAGS force-loads. Without it, a first build on a clean
+        # checkout fails its input-file check before the phase ever runs.
+        # PLATFORM_NAME is xros / xrsimulator, matching the build dir names.
+        outputFiles:
+          - $(SRCROOT)/sm64coopdx/build/us_$(PLATFORM_NAME)/libsm64coopdx.a
+        script: |
+          set -euo pipefail
+
+          case "$PLATFORM_NAME" in
+            xros)        SDK=xros ;;
+            xrsimulator) SDK=xrsimulator ;;
+            *) echo "error: unsupported platform $PLATFORM_NAME"; exit 1 ;;
+          esac
+
+          # Homebrew's GNU make; the coopdx Makefile needs 4.x, and macOS ships 3.81.
+          # Xcode runs build phases with a sanitised PATH that has no Homebrew in
+          # it, so the usual locations are searched explicitly.
+          PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          export PATH
+
+          MAKE="$(command -v gmake || true)"
+          if [ -z "$MAKE" ]; then
+            for candidate in /opt/homebrew/bin/gmake /usr/local/bin/gmake \
+                             /opt/homebrew/opt/make/libexec/gnubin/make; do
+              if [ -x "$candidate" ]; then MAKE="$candidate"; break; fi
+            done
+          fi
+          if [ -z "$MAKE" ]; then
+            echo "error: gmake not found - run 'brew install make coreutils'"
+            exit 1
+          fi
+
+          cd "$SRCROOT/sm64coopdx"
+
+          # Captured rather than streamed. Xcode's own log goes through
+          # xcpretty in CI, which drops the failing compiler line and leaves
+          # only "Command PhaseScriptExecution failed" - true, and useless. On
+          # failure the error lines and the tail are printed here, so whatever
+          # went wrong is in the CI log even when the formatter swallows the
+          # rest. A parallel build interleaves its output, hence both.
+          LOG="$SRCROOT/sm64coopdx/build/coopdx-build.log"
+          mkdir -p "$(dirname "$LOG")"
+
+          # SDKROOT has to go. Xcode exports it pointing at the visionOS SDK,
+          # and coopdx first builds a dozen HOST tools - n64graphics, mio0,
+          # aiff_extract_codebook - with plain `gcc`, which honours it. Those
+          # then come out as visionOS binaries, and macOS will not run one: the
+          # kernel kills it the moment make invokes it, which surfaces as
+          # "Error 137" naming no cause at all. The game itself is unaffected,
+          # because Makefile.visionos passes its own -isysroot from
+          # `xcrun --sdk xros`, which overrides the environment either way.
+          #
+          # The deployment targets have to go with it, and for the same reason.
+          # XROS_DEPLOYMENT_TARGET on its own is enough to aim clang at the
+          # headset - it then reads the macOS headers while targeting visionOS
+          # and rejects everything marked unavailable there. Proven by clang's
+          # own words: "using sysroot for 'macOS 27.0' but targeting
+          # 'arm64-apple-xros26.0.0'". The game does not need the variable
+          # either; Makefile.visionos passes its full triple through -target.
+          #
+          # Only bites where the tools are actually rebuilt, so a developer's
+          # machine with them already lying around never sees it - a build
+          # server, checking out clean every time, sees nothing else.
+          if ! env -u SDKROOT \
+                   -u XROS_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
+                   -u TVOS_DEPLOYMENT_TARGET -u WATCHOS_DEPLOYMENT_TARGET \
+                   -u DRIVERKIT_DEPLOYMENT_TARGET \
+                   "$MAKE" TARGET_VISIONOS=1 VISIONOS_SDK="$SDK" \
+                       DISCORD_SDK=0 COOPNET=0 UPDATER=0 \
+                       visionos -j"$(sysctl -n hw.ncpu)" > "$LOG" 2>&1; then
+            echo "error: sm64coopdx build failed. Matching lines:" >&2
+            grep -nE "error:|Error [0-9]+|No such file|command not found|not found" "$LOG" | tail -40 >&2
+            echo "error: --- last 60 lines ---" >&2
+            tail -60 "$LOG" >&2
+            exit 1
+          fi
+
+    postCompileScripts:
+      - name: Copy game resources into the bundle
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+
+          case "$PLATFORM_NAME" in
+            xros)        BUILD_SUBDIR=us_xros ;;
+            xrsimulator) BUILD_SUBDIR=us_xrsimulator ;;
+            *) echo "error: unsupported platform $PLATFORM_NAME"; exit 1 ;;
+          esac
+
+          SRC="$SRCROOT/sm64coopdx/build/$BUILD_SUBDIR"
+          DST="$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+
+          # sys_resource_path() on visionOS is the .app directory itself, which
+          # is exactly what UNLOCALIZED_RESOURCES_FOLDER_PATH points at for an
+          # iOS-style bundle - see the TARGET_VISIONOS branch in platform.c.
+          for dir in lang palettes; do
+            if [ -d "$SRC/$dir" ]; then
+              rsync -a --delete "$SRC/$dir" "$DST/"
+            fi
+          done
+
+          # mods/ and dynos/packs/ hold coopdx's optional example content. Both
+          # directories have to exist - coopdx scans them - but in Debug they
+          # are left empty, because loading them costs minutes of startup in the
+          # simulator and changes nothing about vanilla play.
+          # See MARIOVISION_BUNDLE_OPTIONAL_MODS.
+          rm -rf "$DST/mods" "$DST/dynos"
+          if [ "${MARIOVISION_BUNDLE_OPTIONAL_MODS:-YES}" = "YES" ]; then
+            [ -d "$SRC/mods" ]  && rsync -a "$SRC/mods" "$DST/"
+            [ -d "$SRC/dynos" ] && rsync -a "$SRC/dynos" "$DST/"
+          fi
+          mkdir -p "$DST/mods" "$DST/dynos/packs"

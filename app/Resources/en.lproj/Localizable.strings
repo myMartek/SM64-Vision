@@ -1,0 +1,79 @@
+/* MarioVision - development language.
+   The keys are the English text itself, so this file is an identity mapping.
+   It exists so that English is a language the bundle declares: without it the
+   system has no en to fall back to and a device set to, say, French would be
+   handed German. */
+
+/* Launcher */
+"SM64 Vision" = "SM64 Vision";
+"Start" = "Start";
+"Settings" = "Settings";
+"Resume" = "Resume";
+"Running" = "Running";
+"Loading…" = "Loading…";
+"Starts straight into the castle and skips the intro. This window closes as it does — the menu button on the controller brings it back." = "Starts straight into the castle and skips the intro. This window closes as it does — the menu button on the controller brings it back.";
+"The game keeps running, you just can't see it. “Resume” brings it back as %@." = "The game keeps running, you just can't see it. “Resume” brings it back as %@.";
+
+/* Render modes */
+"2D Window" = "2D Window";
+"3D Window" = "3D Window";
+"3D Portal" = "3D Portal";
+"3rd-Person VR" = "3rd-Person VR";
+"VR (First Person)" = "VR (First Person)";
+"%@ (Beta)" = "%@ (Beta)";
+"The game in a flat window, as on a screen." = "The game in a flat window, as on a screen.";
+"A screen with depth: the framing stays the game's own, but it sits in space in front of you instead of flat on the glass." = "A screen with depth: the framing stays the game's own, but it sits in space in front of you instead of flat on the glass.";
+"A window into the world. The camera sits on the glass — move your head and you see past it, sideways." = "A window into the world. The camera sits on the glass — move your head and you see past it, sideways.";
+"Like the portal, without the frame: the world fills your whole field of view." = "Like the portal, without the frame: the world fills your whole field of view.";
+"You stand where the character stands. He walks where you look; the right stick turns your heading in 30° steps. Of him, only the shadow remains." = "You stand where the character stands. He walks where you look; the right stick turns your heading in 30° steps. Of him, only the shadow remains.";
+
+/* Settings */
+"Render mode" = "Render mode";
+"Presentation" = "Presentation";
+"Can be switched while the game is running." = "Can be switched while the game is running.";
+"Graphics" = "Graphics";
+"Stereo" = "Stereo";
+"Depth" = "Depth";
+"Focal plane" = "Focal plane";
+"Image quality" = "Image quality";
+"Antialiasing" = "Antialiasing";
+"Off" = "Off";
+"Supersampling" = "Supersampling";
+"HUD in VR" = "HUD in VR";
+"Size" = "Size";
+"Height" = "Height";
+"How far apart the two eyes sit. 1.00 would be physically correct in the portal, but the world behind it is greatly reduced and reads as flat — 1.50 gives it depth. The 3D window works at a different scale and is far more sensitive: there the near field decides, and a little is a lot. No effect in the 2D window." = "How far apart the two eyes sit. 1.00 would be physically correct in the portal, but the world behind it is greatly reduced and reads as flat — 1.50 gives it depth. The 3D window works at a different scale and is far more sensitive: there the near field decides, and a little is a lot. No effect in the 2D window.";
+"3D window only: the distance at which both images coincide. Nearer things step out of the screen, further ones lie behind it. Set too far forward the background becomes unpleasant; too far back, the foreground. About 1000 is the character's distance from the camera." = "3D window only: the distance at which both images coincide. Nearer things step out of the screen, further ones lie behind it. Set too far forward the background becomes unpleasant; too far back, the foreground. About 1000 is the character's distance from the camera.";
+"Smooths polygon edges. Takes effect at once. No function in the simulator — Metal rejects the depth resolve there." = "Smooths polygon edges. Takes effect at once. No function in the simulator — Metal rejects the depth resolve there.";
+"Renders into a correspondingly larger texture and averages it down. The most effective lever against ragged edges, because it also works inside textures and at the window's own edge. The cost rises with the square — at 2.00 therefore fourfold." = "Renders into a correspondingly larger texture and averages it down. The most effective lever against ragged edges, because it also works inside textures and at the window's own edge. The cost rises with the square — at 2.00 therefore fourfold.";
+"The compositor's render resolution would be the strongest lever, but it cannot be raised here: any value above the platform's own stops the layer from starting." = "The compositor's render resolution would be the strongest lever, but it cannot be raised here: any value above the platform's own stops the layer from starting.";
+"Both VR modes. The readouts keep the arrangement the game gives them — the pane they are laid onto simply grows, which pushes the corners apart in both directions at once. Takes effect at once." = "Both VR modes. The readouts keep the arrangement the game gives them — the pane they are laid onto simply grows, which pushes the corners apart in both directions at once. Takes effect at once.";
+
+/* ROM setup */
+"SM64 Vision needs your own, unmodified ROM of the US release. It is copied into the app's folder once and never passed on." = "SM64 Vision needs your own, unmodified ROM of the US release. It is copied into the app's folder once and never passed on.";
+"Choose ROM…" = "Choose ROM…";
+
+/* ROM setup errors */
+"The file could not be read." = "The file could not be read.";
+"That is not an unmodified US ROM (MD5 %@). Only the US release is supported." = "That is not an unmodified US ROM (MD5 %@). Only the US release is supported.";
+
+/* Jump tilt */
+"Jump tilt" = "Jump tilt";
+"Angle" = "Angle";
+"Speed" = "Speed";
+"Duration" = "Duration";
+"First-person VR only. Off the ground the view eases downwards, so the ground ahead comes into sight without you having to look for it mid-jump. Duration is how long a jump holds the tilt before it lets go again — a long fall should not leave the horizon leaning. Angle at 0° switches it off." = "First-person VR only. Off the ground the view eases downwards, so the ground ahead comes into sight without you having to look for it mid-jump. Duration is how long a jump holds the tilt before it lets go again — a long fall should not leave the horizon leaning. Angle at 0° switches it off.";
+"Tilt on jumping" = "Tilt on jumping";
+"Snap instead of easing" = "Snap instead of easing";
+"First-person VR only. Off the ground the view eases downwards, so the ground ahead comes into sight without you having to look for it mid-jump. Duration is how long a jump holds the tilt before it lets go again — a long fall should not leave the horizon leaning. Snapping arrives at once and ignores the speed." = "First-person VR only. Off the ground the view eases downwards, so the ground ahead comes into sight without you having to look for it mid-jump. Duration is how long a jump holds the tilt before it lets go again — a long fall should not leave the horizon leaning. Snapping arrives at once and ignores the speed.";
+
+/* Game data */
+"Game data" = "Game data";
+"Replace game data…" = "Replace game data…";
+"Accepted. Restart the app for it to take effect." = "Accepted. Restart the app for it to take effect.";
+"Currently running the review scene instead of a game. Choosing a ROM image switches back." = "Currently running the review scene instead of a game. Choosing a ROM image switches back.";
+"Choose a different ROM image, for instance after replacing the file. Takes effect on the next launch." = "Choose a different ROM image, for instance after replacing the file. Takes effect on the next launch.";
+
+/* Doors */
+"Doors" = "Doors";
+"Open doors by hand" = "Open doors by hand";

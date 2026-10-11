@@ -1,0 +1,66 @@
+# Tells the build server that there is something new to build.
+#
+# The source lives here. The release builds are made elsewhere, on the
+# maintainer's own Mac, which holds the signing certificates and everything else
+# a release needs - none of that is in this repository. All this does is say
+# which branch and which commit; the server fetches the source itself.
+#
+# Two repository secrets:
+#   BUILD_TRIGGER_URL    the pipeline trigger endpoint of the build server
+#   BUILD_TRIGGER_TOKEN  its trigger token
+#
+# Runs on push only. A pull request from a fork never reaches this, and would
+# not be given the secrets if it did.
+name: Release build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "visionos/**"
+
+# In order, one at a time per branch.
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  trigger:
+    # Forks have no build server to call.
+    if: github.repository == 'myMartek/SM64-Vision'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger the build
+        env:
+          TRIGGER_URL: ${{ secrets.BUILD_TRIGGER_URL }}
+          TRIGGER_TOKEN: ${{ secrets.BUILD_TRIGGER_TOKEN }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$TRIGGER_URL" ] || [ -z "$TRIGGER_TOKEN" ]; then
+            echo "::warning::BUILD_TRIGGER_URL and BUILD_TRIGGER_TOKEN are not set - no build was requested."
+            exit 0
+          fi
+
+          # The answer is thrown away on purpose. It names the server, and this
+          # log is public; the status code says all that needs saying here.
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --max-time 60 --retry 3 \
+            --request POST \
+            --form "token=$TRIGGER_TOKEN" \
+            --form "ref=main" \
+            --form "variables[SOURCE_BRANCH]=$SOURCE_BRANCH" \
+            --form "variables[SOURCE_SHA]=$SOURCE_SHA" \
+            "$TRIGGER_URL" 2>/dev/null || true)"
+
+          if [ "$status" != "201" ]; then
+            echo "::error::The build server answered ${status:-nothing} instead of 201 - no build was started."
+            exit 1
+          fi
+          echo "Build requested for $SOURCE_BRANCH at $SOURCE_SHA."

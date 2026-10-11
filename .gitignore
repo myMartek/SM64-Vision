@@ -1,0 +1,21 @@
+# Never commit the ROM. It is not ours to distribute, and the app copies it into
+# its own container at first launch anyway.
+roms/
+*.z64
+
+# Build output
+.build/
+sm64coopdx/build/
+DerivedData/
+
+# Generated from project.yml by xcodegen - run `xcodegen generate` after cloning.
+# Kept out of the repo so a hand-edit in Xcode cannot silently diverge from
+# project.yml, which is the source of truth for the target settings.
+MarioVision.xcodeproj/
+
+.DS_Store
+
+build/
+
+# Your own signing team and bundle id - see Config/Signing.xcconfig.
+Config/Local.xcconfig

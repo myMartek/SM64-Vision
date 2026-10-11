@@ -1,0 +1,152 @@
+#==============================================================================#
+# Apple visionOS (Vision Pro) build                                            #
+#==============================================================================#
+#
+# Produces a static library that the MarioVision Xcode app links against,
+# instead of a standalone executable. The app owns the run loop and calls into
+# the library, which is the inverse of gWindowApi->main_loop(produce_one_frame).
+#
+# This file is included from Makefile near the target section, so that every
+# host-oriented variable computed above it can be overridden in one place. That
+# keeps the diff against upstream sm64coopdx down to three small hunks.
+#
+#   gmake TARGET_VISIONOS=1 DISCORD_SDK=0 COOPNET=0 visionos
+#   gmake TARGET_VISIONOS=1 DISCORD_SDK=0 COOPNET=0 VISIONOS_SDK=xrsimulator visionos
+#
+# COOPNET is off for now: lib/coopnet ships prebuilt dylibs for desktop only.
+# Phase 3 builds libcoopnet + libjuice from source for arm64-apple-xros.
+#==============================================================================#
+
+ifeq ($(TARGET_VISIONOS),1)
+
+ifeq ($(VISIONOS_SDK),xrsimulator)
+  VISIONOS_TRIPLE := arm64-apple-xros$(VISIONOS_MIN)-simulator
+else
+  VISIONOS_TRIPLE := arm64-apple-xros$(VISIONOS_MIN)
+endif
+
+VISIONOS_SYSROOT := $(shell xcrun --sdk $(VISIONOS_SDK) --show-sdk-path)
+ifeq ($(VISIONOS_SYSROOT),)
+  $(error Could not locate the $(VISIONOS_SDK) SDK. Is Xcode with the visionOS platform installed?)
+endif
+
+VISIONOS_ARCH_FLAGS := -target $(VISIONOS_TRIPLE) -isysroot $(VISIONOS_SYSROOT)
+
+#------------------------------------------------------------------------------
+# Toolchain
+#------------------------------------------------------------------------------
+
+CC       := xcrun --sdk $(VISIONOS_SDK) clang
+CXX      := xcrun --sdk $(VISIONOS_SDK) clang++
+AR       := xcrun --sdk $(VISIONOS_SDK) ar
+AS       := $(CC)
+LD       := $(CXX)
+CC_CHECK := $(CC)
+
+#------------------------------------------------------------------------------
+# Flags
+#
+# The host build bakes SDL2 and macOS deployment flags into CFLAGS via
+# BACKEND_CFLAGS and EXTRA_CFLAGS. Both would drag Homebrew headers into a
+# cross compile, so they are filtered back out rather than rebuilding CFLAGS
+# from scratch - that way all the -D options appended further up survive.
+#------------------------------------------------------------------------------
+
+VISIONOS_FILTER_OUT := $(BACKEND_CFLAGS) -mmacosx-version-min=$(MIN_MACOS_VERSION) -fPIE
+
+CFLAGS          := $(filter-out $(VISIONOS_FILTER_OUT),$(CFLAGS))
+CC_CHECK_CFLAGS := $(filter-out $(VISIONOS_FILTER_OUT),$(CC_CHECK_CFLAGS))
+EXTRA_CPP_FLAGS := $(filter-out $(VISIONOS_FILTER_OUT),$(EXTRA_CPP_FLAGS))
+
+# The stub include dir has to come first so that <SDL2/SDL.h> resolves to our
+# compatibility header instead of the Homebrew one. See src/pc/visionos/.
+VISIONOS_INCLUDES := -Isrc/pc/visionos/sdl2_stub -Isrc/pc/visionos
+
+CFLAGS          += $(VISIONOS_ARCH_FLAGS) $(VISIONOS_INCLUDES) -DTARGET_VISIONOS=1 -fembed-bitcode-marker
+CC_CHECK_CFLAGS += $(VISIONOS_ARCH_FLAGS) $(VISIONOS_INCLUDES) -DTARGET_VISIONOS=1
+
+# Objective-C / Objective-C++ need ARC; the platform layer is written against it.
+VISIONOS_OBJC_FLAGS := -fobjc-arc
+
+# Nothing is linked here, so the desktop link flags are irrelevant.
+LDFLAGS          :=
+BACKEND_LDFLAGS  :=
+COOPNET_LIBS     :=
+DISCORD_SDK_LIBS :=
+UPDATER_EXEC     :=
+RPC_LIBS         :=
+
+#------------------------------------------------------------------------------
+# Sources
+#
+# The desktop backends are dropped wholesale. Everything else compiles as-is:
+# the handful of remaining SDL call sites are served by the stub header, so no
+# game source needs an #ifdef.
+#------------------------------------------------------------------------------
+
+VISIONOS_EXCLUDE_C := \
+  src/pc/gfx/gfx_sdl.c \
+  src/pc/gfx/gfx_opengl.c \
+  src/pc/audio/audio_sdl.c \
+  src/pc/controller/controller_sdl.c \
+  src/pc/controller/controller_mouse.c \
+  src/pc/update_checker.c
+
+SRC_DIRS += src/pc/visionos
+
+C_FILES   := $(filter-out $(VISIONOS_EXCLUDE_C),$(C_FILES)) $(wildcard src/pc/visionos/*.c)
+CPP_FILES := $(CPP_FILES) $(wildcard src/pc/visionos/*.cpp)
+M_FILES   := $(wildcard src/pc/visionos/*.m)
+MM_FILES  := $(wildcard src/pc/visionos/*.mm)
+
+O_FILES := $(foreach file,$(C_FILES),$(BUILD_DIR)/$(file:.c=.o)) \
+           $(foreach file,$(CPP_FILES),$(BUILD_DIR)/$(file:.cpp=.o)) \
+           $(foreach file,$(M_FILES),$(BUILD_DIR)/$(file:.m=.o)) \
+           $(foreach file,$(MM_FILES),$(BUILD_DIR)/$(file:.mm=.o)) \
+           $(foreach file,$(S_FILES),$(BUILD_DIR)/$(file:.s=.o)) \
+           $(foreach file,$(GENERATED_C_FILES),$(file:.c=.o))
+
+#------------------------------------------------------------------------------
+# Targets
+#------------------------------------------------------------------------------
+
+VISIONOS_LIB := $(BUILD_DIR)/libsm64coopdx.a
+
+.PHONY: visionos visionos-resources
+visionos: $(VISIONOS_LIB) visionos-resources
+
+# Runtime data the Xcode app copies into the bundle.
+#
+# Staged here rather than through the upstream $(BUILD_DIR)/$(LANG_DIR) targets:
+# the Makefile deletes build/<dir>/lang from a $(shell) at parse time, so the
+# recursive make invocation wipes out whatever the outer one just copied.
+visionos-resources:
+	@$(PRINT) "$(GREEN)Staging resources: $(BLUE)$(BUILD_DIR) $(NO_COL)\n"
+	$(V)for dir in $(LANG_DIR) $(MOD_DIR) $(PALETTES_DIR); do \
+	    rm -rf $(BUILD_DIR)/$$dir; \
+	    $(CP) -f -r $$dir $(BUILD_DIR)/; \
+	done
+
+$(VISIONOS_LIB): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
+	@$(PRINT) "$(GREEN)Creating static library: $(BLUE)$@ $(NO_COL)\n"
+	$(V)rm -f $@
+	$(V)$(AR) rcs $@ $(filter %.o,$^)
+
+# miniaudio pulls in AVFoundation on Apple mobile platforms, so on visionOS it
+# has to be compiled as Objective-C even though it is a .c file. This is the
+# vendor's own documented requirement for iOS-family targets.
+# Both the syntax-check pass and the real compile need the language override.
+$(BUILD_DIR)/src/pc/utils/miniaudio.o: CFLAGS          += -x objective-c $(VISIONOS_OBJC_FLAGS)
+$(BUILD_DIR)/src/pc/utils/miniaudio.o: CC_CHECK_CFLAGS += -x objective-c $(VISIONOS_OBJC_FLAGS)
+
+# Objective-C
+$(BUILD_DIR)/%.o: %.m
+	$(call print,Compiling:,$<,$@)
+	$(V)$(CC) $(PROF_FLAGS) -c $(CFLAGS) $(VISIONOS_OBJC_FLAGS) -MMD -MP -MT $@ -MF $(BUILD_DIR)/$*.d -o $@ $<
+
+# Objective-C++
+$(BUILD_DIR)/%.o: %.mm
+	$(call print,Compiling:,$<,$@)
+	$(V)$(CXX) $(PROF_FLAGS) -c $(EXTRA_CPP_FLAGS) $(EXTRA_CPP_INCLUDES) $(CFLAGS) $(VISIONOS_OBJC_FLAGS) -MMD -MP -MT $@ -MF $(BUILD_DIR)/$*.d -o $@ $<
+
+endif # TARGET_VISIONOS

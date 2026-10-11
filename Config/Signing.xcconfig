@@ -1,0 +1,16 @@
+// Who signs the app, and under which bundle id.
+//
+// The values here are the maintainer's, and they are what the release pipeline
+// builds with. The simulator needs neither. A build for your own headset needs
+// both replaced, and that belongs in Config/Local.xcconfig rather than here -
+// that file is not tracked, so a pull never fights over it:
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   PRODUCT_BUNDLE_IDENTIFIER = com.example.sm64vision
+//
+// Run `xcodegen generate` again after creating it.
+
+DEVELOPMENT_TEAM = 9VSUPJ942Y
+PRODUCT_BUNDLE_IDENTIFIER = de.martek.sm64vision
+
+#include? "Local.xcconfig"
