@@ -64,6 +64,30 @@ enum RenderMode: Int, CaseIterable, Identifiable {
 /// mariovision_ui.c.
 @MainActor
 final class GameBridge: ObservableObject {
+    /// The save file the next Start uses. Files are A–D, stored as 1...4.
+    @Published var selectedSaveSlot: Int = {
+        let stored = UserDefaults.standard.integer(forKey: "mv.saveSlot")
+        return (1...4).contains(stored) ? stored : 1
+    }() {
+        didSet { UserDefaults.standard.set(selectedSaveSlot, forKey: "mv.saveSlot") }
+    }
+
+    /// Star totals published by the engine. -1 until the first snapshot arrives.
+    @Published private(set) var saveStars = [-1, -1, -1, -1]
+    /// Whether each file already has progress.
+    @Published private(set) var saveExists = [false, false, false, false]
+    /// True while an erase is queued on the game thread.
+    @Published private(set) var saveBusy = false
+    /// True from Start until the engine leaves the main menu.
+    @Published private(set) var startingSave = false
+
+    func eraseSave(_ slot: Int) {
+        guard !demoMode, isReady, !isRunning, !saveBusy, !startingSave,
+              (1...4).contains(slot) else { return }
+        saveBusy = true
+        mariovision_erase_save(Int32(slot))
+    }
+
     /// Loaded and sitting in the main menu: Start can do something.
     @Published var isReady = false
 
@@ -464,6 +488,12 @@ final class GameBridge: ObservableObject {
 
     private func refresh() {
         if demoMode { return }
+        let stars = (1...4).map { Int(mariovision_save_stars(Int32($0))) }
+        let exists = (1...4).map { mariovision_save_exists(Int32($0)) }
+        if stars != saveStars { saveStars = stars }
+        if exists != saveExists { saveExists = exists }
+        saveBusy = mariovision_save_busy()
+        if mariovision_game_running() { startingSave = false }
         let ready = mariovision_game_ready()
         let running = mariovision_game_running()
         let open = mariovision_is_visible()
@@ -517,6 +547,9 @@ final class GameBridge: ObservableObject {
 
     func startGame() {
         guard !demoMode else { isRunning = true; return }
-        mariovision_start_game()
+        guard isReady, !isRunning, !saveBusy, !startingSave,
+              (1...4).contains(selectedSaveSlot) else { return }
+        startingSave = true
+        mariovision_start_save(Int32(selectedSaveSlot))
     }
 }
