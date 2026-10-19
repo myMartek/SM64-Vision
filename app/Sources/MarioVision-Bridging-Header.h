@@ -11,3 +11,6 @@
 #import "pc/visionos/mariovision_hands.h"
 #import "pc/visionos/mariovision_levels.h"
 #import "pc/visionos/gfx_metal.h"
+
+// Thread-safe cosmetic preference. Implemented in mario_misc.c.
+void mariovision_set_silver_metal(bool enabled);
