@@ -291,6 +291,272 @@ static s16 invert_s16(s16 value) {
     return (value == -0x8000) ? 0x7FFF : -value;
 }
 
+static void apply_stick_options(int16_t *leftx, int16_t *lefty, int16_t *rightx, int16_t *righty) {
+    if (configStick.rotateLeft) {
+        s16 tmp = *leftx;
+        *leftx = invert_s16(*lefty);
+        *lefty = tmp;
+    }
+    if (configStick.rotateRight) {
+        s16 tmp = *rightx;
+        *rightx = invert_s16(*righty);
+        *righty = tmp;
+    }
+    if (configStick.invertLeftX)  { *leftx = invert_s16(*leftx); }
+    if (configStick.invertLeftY)  { *lefty = invert_s16(*lefty); }
+    if (configStick.invertRightX) { *rightx = invert_s16(*rightx); }
+    if (configStick.invertRightY) { *righty = invert_s16(*righty); }
+}
+
+// Set when the N64 movement stick is the direction pad itself, so that pad is
+// not also treated as the camera. Compared, never messaged.
+static __unsafe_unretained GCController *sN64DpadController = nil;
+static bool sN64DpadIsStick = false;
+
+// The Switch Online N64 pad has no extendedGamepad, and its one analog stick
+// is not always the "Left Thumbstick" key. C buttons are the other cluster
+// (right stick / SWITCH_N64_C_BUTTONS) and must not be read as walk.
+static bool string_has(NSString *s, NSString *part) {
+    if (s.length == 0 || part.length == 0) { return false; }
+    return [s rangeOfString:part options:NSCaseInsensitiveSearch].location != NSNotFound;
+}
+
+static bool name_is_movement_stick(NSString *name) {
+    if (name.length == 0) { return false; }
+    if (string_has(name, @"right")) { return false; }
+    if ([name.lowercaseString hasPrefix:@"r."]) { return false; }
+    if (string_has(name, @"c_button") || string_has(name, @"c-button") || string_has(name, @"c button")) {
+        return false;
+    }
+    if (string_has(name, @"c-kn") || string_has(name, @"direction") || string_has(name, @"d-pad")
+        || string_has(name, @"dpad")) {
+        return false;
+    }
+    if (string_has(name, @"button")) { return false; }
+    if (string_has(name, @"thumbstick") || string_has(name, @"steuer") || string_has(name, @"joystick")) {
+        return true;
+    }
+    return string_has(name, @"stick");
+}
+
+static bool element_is_movement_stick(NSString *key, NSString *localized, NSString *symbol) {
+    return name_is_movement_stick(key) || name_is_movement_stick(localized) || name_is_movement_stick(symbol);
+}
+
+static bool source_is_dpad(NSString *source) {
+    return [source isEqualToString:@"Direction Pad"]
+        || [source isEqualToString:@"Cardinal Direction Pad"]
+        || [source isEqualToString:@"GCInputDirectionPad"]
+        || [source isEqualToString:@"micro.dpad"];
+}
+
+static bool controller_looks_like_n64(GCController *controller) {
+    if (controller == nil) { return false; }
+    NSString *blob = [NSString stringWithFormat:@"%@ %@", controller.vendorName ?: @"", controller.productCategory ?: @""];
+    if (string_has(blob, @"N64") || string_has(blob, @"Nintendo 64") || string_has(blob, @"64 Controller")) {
+        return true;
+    }
+    GCPhysicalInputProfile *profile = controller.physicalInputProfile;
+    for (NSString *key in profile.elements) {
+        GCControllerElement *element = profile.elements[key];
+        if (string_has(key, @"N64") || string_has(element.sfSymbolsName, @"N64")
+            || string_has(element.localizedName, @"Steuerstick")
+            || string_has(element.localizedName, @"Control Stick")) {
+            return true;
+        }
+    }
+    for (id<GCPhysicalInputElement> element in controller.input.elements) {
+        if (string_has(element.sfSymbolsName, @"N64") || string_has(element.localizedName, @"Steuerstick")
+            || string_has(element.localizedName, @"Control Stick")) {
+            return true;
+        }
+        for (NSString *alias in element.aliases) {
+            if (string_has(alias, @"N64")) { return true; }
+        }
+    }
+    return false;
+}
+
+static bool stick_moved(int16_t x, int16_t y) {
+    const int64_t deadzone = (int64_t) configStickDeadzone * (int64_t) DEADZONE_STEP;
+    const int64_t mag2 = (int64_t) x * (int64_t) x + (int64_t) y * (int64_t) y;
+    return mag2 > deadzone * deadzone;
+}
+
+static void legacy_dpad_sdl(GCControllerDirectionPad *pad, int16_t *x, int16_t *y) {
+    *x = to_axis(pad.xAxis.value);
+    *y = to_axis(-pad.yAxis.value); // GC +y is up, SDL +y is down
+}
+
+static void consider_stick(int16_t x, int16_t y, NSString *source,
+                           int *bestMag, int16_t *bestX, int16_t *bestY, NSString **bestSource) {
+    const int mag = abs(x) + abs(y);
+    if (mag > *bestMag) {
+        *bestMag = mag;
+        *bestX = x;
+        *bestY = y;
+        *bestSource = source;
+    }
+}
+
+static bool axis_pair_base(NSString *key, NSString **base) {
+    NSString *suffix = @" X Axis";
+    if (![key hasSuffix:suffix]) { return false; }
+    *base = [key substringToIndex:key.length - suffix.length];
+    return true;
+}
+
+/// Movement stick in SDL axis space. Named stick elements win. An analog
+/// direction pad or a bare X/Y pair is used when no named stick exists, and
+/// also on an N64 pad whose leftThumbstick is present but never moves.
+/// Digital pads are not used, so a real D-pad still clicks rather than walking.
+static bool read_movement_stick(GCController *controller, bool allowFallback,
+                                int16_t *outX, int16_t *outY, NSString **outSource) {
+    *outX = 0;
+    *outY = 0;
+    if (outSource != NULL) { *outSource = @"none"; }
+
+    int namedMag = -1, analogMag = -1;
+    int16_t namedX = 0, namedY = 0, analogX = 0, analogY = 0;
+    NSString *namedSource = nil, *analogSource = nil;
+    bool foundNamed = false;
+
+    GCExtendedGamepad *extended = controller.extendedGamepad;
+    if (extended != nil) {
+        foundNamed = true;
+        int16_t x, y;
+        legacy_dpad_sdl(extended.leftThumbstick, &x, &y);
+        consider_stick(x, y, @"extendedGamepad.leftThumbstick", &namedMag, &namedX, &namedY, &namedSource);
+    }
+
+    GCPhysicalInputProfile *profile = controller.physicalInputProfile;
+    if (profile != nil) {
+        for (NSString *key in [profile.dpads.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+            GCControllerDirectionPad *pad = profile.dpads[key];
+            if (!element_is_movement_stick(key, pad.localizedName, pad.sfSymbolsName)) { continue; }
+            foundNamed = true;
+            int16_t x, y;
+            legacy_dpad_sdl(pad, &x, &y);
+            consider_stick(x, y, key, &namedMag, &namedX, &namedY, &namedSource);
+        }
+        for (NSString *key in [profile.elements.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+            NSString *base = nil;
+            if (!axis_pair_base(key, &base)) { continue; }
+            GCControllerElement *element = profile.elements[key];
+            if (![element isKindOfClass:[GCControllerAxisInput class]]) { continue; }
+            if (!element_is_movement_stick(base, element.localizedName, element.sfSymbolsName)
+                && !name_is_movement_stick(key)) {
+                continue;
+            }
+            GCControllerElement *yElement = profile.elements[[base stringByAppendingString:@" Y Axis"]];
+            if (![yElement isKindOfClass:[GCControllerAxisInput class]]) { continue; }
+            foundNamed = true;
+            const int16_t x = to_axis(((GCControllerAxisInput *) element).value);
+            const int16_t y = to_axis(-((GCControllerAxisInput *) yElement).value);
+            consider_stick(x, y, key, &namedMag, &namedX, &namedY, &namedSource);
+        }
+    }
+
+    id<GCDevicePhysicalInput> input = controller.input;
+    if (input != nil) {
+        for (id<GCPhysicalInputElement> element in input.elements) {
+            bool match = element_is_movement_stick(nil, element.localizedName, element.sfSymbolsName);
+            NSString *alias = nil;
+            for (NSString *name in element.aliases) {
+                if (alias == nil) { alias = name; }
+                if (name_is_movement_stick(name)) { match = true; alias = name; }
+            }
+            if (!match) { continue; }
+            int16_t x = 0, y = 0;
+            bool got = false;
+            if ([element conformsToProtocol:@protocol(GCDirectionPadElement)]) {
+                const GCPoint2 v = ((id<GCDirectionPadElement>) element).xyAxes.value;
+                x = to_axis(v.x);
+                y = to_axis(-v.y);
+                got = true;
+            } else if ([element conformsToProtocol:@protocol(GCAxis2DInput)]) {
+                const GCPoint2 v = ((id<GCAxis2DInput>) element).value;
+                x = to_axis(v.x);
+                y = to_axis(-v.y);
+                got = true;
+            }
+            if (!got) { continue; }
+            foundNamed = true;
+            consider_stick(x, y, alias ?: element.localizedName ?: @"modern stick",
+                           &namedMag, &namedX, &namedY, &namedSource);
+        }
+    }
+
+    // allowFallback is the N64 pad, whose stick may sit behind a stub
+    // leftThumbstick. Every other pad only falls through when it has no named
+    // stick, so a Joy-Con's thumbstick is never replaced by its D-pad.
+    if (allowFallback || !foundNamed) {
+        if (controller.microGamepad != nil && controller.microGamepad.allowsRotation) {
+            controller.microGamepad.allowsRotation = NO;
+        }
+        GCControllerDirectionPad *pads[3] = { nil, nil, nil };
+        NSString *padNames[3] = { @"Direction Pad", @"Cardinal Direction Pad", @"micro.dpad" };
+        if (profile != nil) {
+            pads[0] = profile.dpads[@"Direction Pad"];
+            pads[1] = profile.dpads[@"Cardinal Direction Pad"];
+        }
+        if (controller.microGamepad != nil) { pads[2] = controller.microGamepad.dpad; }
+        for (int i = 0; i < 3; i++) {
+            GCControllerDirectionPad *pad = pads[i];
+            if (pad == nil || !pad.xAxis.analog) { continue; }
+            int16_t x, y;
+            legacy_dpad_sdl(pad, &x, &y);
+            consider_stick(x, y, padNames[i], &analogMag, &analogX, &analogY, &analogSource);
+        }
+        if (profile != nil) {
+            GCControllerAxisInput *xa = profile.axes[@"X Axis"];
+            GCControllerAxisInput *ya = profile.axes[@"Y Axis"];
+            if (xa != nil && ya != nil) {
+                consider_stick(to_axis(xa.value), to_axis(-ya.value), @"X Axis/Y Axis",
+                               &analogMag, &analogX, &analogY, &analogSource);
+            }
+        }
+        if (input != nil) {
+            GCControllerDirectionPad *legacyDpad = profile != nil ? profile.dpads[@"Direction Pad"] : nil;
+            const bool legacyDigital = legacyDpad != nil && !legacyDpad.xAxis.analog;
+            id direction = input[GCInputDirectionPad];
+            if (!legacyDigital && [direction conformsToProtocol:@protocol(GCDirectionPadElement)]) {
+                const GCPoint2 v = ((id<GCDirectionPadElement>) direction).xyAxes.value;
+                consider_stick(to_axis(v.x), to_axis(-v.y), @"GCInputDirectionPad",
+                               &analogMag, &analogX, &analogY, &analogSource);
+            }
+        }
+    }
+
+    const bool namedMoving = foundNamed && stick_moved(namedX, namedY);
+    const bool analogMoving = analogSource != nil && stick_moved(analogX, analogY);
+    const bool preferAnalog = analogMoving && (!namedMoving || analogMag > namedMag);
+    if (preferAnalog) {
+        *outX = analogX;
+        *outY = analogY;
+        if (outSource != NULL) { *outSource = analogSource; }
+        return true;
+    }
+    if (foundNamed) {
+        *outX = namedX;
+        *outY = namedY;
+        if (outSource != NULL) { *outSource = namedSource ?: @"stick"; }
+        return true;
+    }
+    return false;
+}
+
+/// One line, the first time this pad's stick is accepted. Enough to see which
+/// element drove Mario; the per-element inventory stays off.
+static void n64_note_once(GCController *controller, NSString *source) {
+    static NSMutableSet<NSString *> *seen = nil;
+    if (seen == nil) { seen = [NSMutableSet set]; }
+    NSString *key = [NSString stringWithFormat:@"%p", controller];
+    if ([seen containsObject:key]) { return; }
+    [seen addObject:key];
+    NSLog(@"[N64Stick] name=\"%@\" category=\"%@\" chosen=%@",
+          controller.vendorName ?: @"?", controller.productCategory ?: @"?", source ?: @"?");
+}
 
 /// Read whatever has no extended gamepad, by the names it answers to.
 ///
@@ -326,9 +592,40 @@ static void read_profile_pads(OSContPad *pad) {
     sProfileLeftY = 0;
     sProfileRightX = 0;
     sProfileRightY = 0;
+    sN64DpadIsStick = false;
+    sN64DpadController = nil;
 
     for (GCController *each in GCController.controllers) {
-        if (each.extendedGamepad != nil) { continue; }
+        const bool n64 = controller_looks_like_n64(each);
+        const bool extended = each.extendedGamepad != nil;
+        const bool spatial = [each.productCategory isEqualToString:GCProductCategorySpatialController];
+
+        int16_t lx = 0, ly = 0;
+        NSString *source = nil;
+        bool foundStick = false;
+        // Sense controllers are read in read_spatial. Scanning them here would
+        // let a resting stick overwrite another pad.
+        if (!spatial && (n64 || !extended)) {
+            foundStick = read_movement_stick(each, n64, &lx, &ly, &source);
+            const bool fallbackSource = source_is_dpad(source)
+                || [source isEqualToString:@"X Axis/Y Axis"];
+            // N64, and a pad whose only axis is an analog direction pad, use
+            // the config deadzone so a partial push still walks. A named stick
+            // on any other pad keeps the half-scale gate.
+            const bool use = (n64 || fallbackSource) ? stick_moved(lx, ly)
+                : (abs(lx) > AXIS_THRESHOLD || abs(ly) > AXIS_THRESHOLD);
+            if (foundStick && use) {
+                sProfileLeftX = lx;
+                sProfileLeftY = ly;
+                if (source_is_dpad(source)) {
+                    sN64DpadIsStick = true;
+                    sN64DpadController = each;
+                }
+                if (n64 || fallbackSource) { n64_note_once(each, source); }
+            }
+        }
+
+        if (extended) { continue; }
         GCPhysicalInputProfile *profile = each.physicalInputProfile;
         if (profile == nil) { continue; }
 
@@ -342,7 +639,7 @@ static void read_profile_pads(OSContPad *pad) {
         if (PBTN("Button Menu")) { pad->button |= START_BUTTON; }
 
         GCControllerDirectionPad *dpad = profile.dpads[@"Direction Pad"];
-        if (dpad != nil) {
+        if (dpad != nil && !(sN64DpadIsStick && sN64DpadController == each)) {
             if (dpad.up.pressed) { pad->button |= U_JPAD; }
             if (dpad.down.pressed) { pad->button |= D_JPAD; }
             if (dpad.left.pressed) { pad->button |= L_JPAD; }
@@ -355,7 +652,7 @@ static void read_profile_pads(OSContPad *pad) {
         // and going round it gave a stick that only leaned left and back.
         GCControllerDirectionPad *lstick = profile.dpads[@"Left Thumbstick"];
         GCControllerDirectionPad *rstick = profile.dpads[@"Right Thumbstick"];
-        if (lstick != nil) {
+        if (!foundStick && lstick != nil) {
             const int16_t x = to_axis(lstick.xAxis.value);
             const int16_t y = to_axis(-lstick.yAxis.value);  // GC is y-up, SDL y-down
             if (abs(x) > AXIS_THRESHOLD || abs(y) > AXIS_THRESHOLD) {
@@ -400,7 +697,17 @@ static void read_gamepad(OSContPad *pad, int16_t *outLeftX, int16_t *outLeftY,
     read_profile_pads(pad);
 
     GCExtendedGamepad *gamepad = sController.extendedGamepad;
-    if (gamepad == nil) { return; }
+    if (gamepad == nil) {
+        // The N64 pad lands here. Its buttons were applied above; its stick
+        // was left in sProfile* and has to be published, or Mario never moves.
+        int16_t lx = sProfileLeftX, ly = sProfileLeftY, rx = sProfileRightX, ry = sProfileRightY;
+        apply_stick_options(&lx, &ly, &rx, &ry);
+        *outLeftX = lx;
+        *outLeftY = ly;
+        *outRightX = rx;
+        *outRightY = ry;
+        return;
+    }
 
     update_button(SDL_BTN_A, gamepad.buttonA.pressed);
     update_button(SDL_BTN_B, gamepad.buttonB.pressed);
@@ -419,10 +726,13 @@ static void read_gamepad(OSContPad *pad, int16_t *outLeftX, int16_t *outLeftY,
         if (down && !sMenuHeld && mariovision_menu_key_allowed()) { mariovision_request_menu(); }
         sMenuHeld = down;
     }
-    update_button(SDL_BTN_DPAD_UP, gamepad.dpad.up.pressed);
-    update_button(SDL_BTN_DPAD_DOWN, gamepad.dpad.down.pressed);
-    update_button(SDL_BTN_DPAD_LEFT, gamepad.dpad.left.pressed);
-    update_button(SDL_BTN_DPAD_RIGHT, gamepad.dpad.right.pressed);
+    // When the N64 stick is this direction pad, a push must walk rather than
+    // also fire the d-pad binds. Every other pad keeps the mapping below.
+    const bool dpadIsStick = sN64DpadIsStick && sController == sN64DpadController;
+    update_button(SDL_BTN_DPAD_UP, !dpadIsStick && gamepad.dpad.up.pressed);
+    update_button(SDL_BTN_DPAD_DOWN, !dpadIsStick && gamepad.dpad.down.pressed);
+    update_button(SDL_BTN_DPAD_LEFT, !dpadIsStick && gamepad.dpad.left.pressed);
+    update_button(SDL_BTN_DPAD_RIGHT, !dpadIsStick && gamepad.dpad.right.pressed);
     update_button(SDL_BTN_START, gamepad.buttonMenu.pressed);
     update_button(SDL_BTN_BACK, gamepad.buttonOptions.pressed);
     update_button(SDL_BTN_GUIDE, gamepad.buttonHome.pressed);
@@ -436,20 +746,7 @@ static void read_gamepad(OSContPad *pad, int16_t *outLeftX, int16_t *outLeftY,
     int16_t ltrig  = to_axis(gamepad.leftTrigger.value);
     int16_t rtrig  = to_axis(gamepad.rightTrigger.value);
 
-    if (configStick.rotateLeft) {
-        s16 tmp = leftx;
-        leftx = invert_s16(lefty);
-        lefty = tmp;
-    }
-    if (configStick.rotateRight) {
-        s16 tmp = rightx;
-        rightx = invert_s16(righty);
-        righty = tmp;
-    }
-    if (configStick.invertLeftX)  { leftx = invert_s16(leftx); }
-    if (configStick.invertLeftY)  { lefty = invert_s16(lefty); }
-    if (configStick.invertRightX) { rightx = invert_s16(rightx); }
-    if (configStick.invertRightY) { righty = invert_s16(righty); }
+    apply_stick_options(&leftx, &lefty, &rightx, &righty);
 
     update_button(VK_LTRIGGER - VK_BASE_SDL_GAMEPAD, ltrig > AXIS_THRESHOLD);
     update_button(VK_RTRIGGER - VK_BASE_SDL_GAMEPAD, rtrig > AXIS_THRESHOLD);
@@ -511,12 +808,16 @@ static void read_gamepad(OSContPad *pad, int16_t *outLeftX, int16_t *outLeftY,
 
     // A pad read through its profile has no place of its own to put a stick,
     // so it leaves it here, and takes precedence only while it is being moved.
+    // Options were already applied to the extended axes; apply them to the
+    // profile axes too, or an inverted N64 stick would ignore the setting.
     const bool profileLeft = (sProfileLeftX != 0 || sProfileLeftY != 0);
     const bool profileRight = (sProfileRightX != 0 || sProfileRightY != 0);
-    *outLeftX = profileLeft ? sProfileLeftX : leftx;
-    *outLeftY = profileLeft ? sProfileLeftY : lefty;
-    *outRightX = profileRight ? sProfileRightX : rightx;
-    *outRightY = profileRight ? sProfileRightY : righty;
+    int16_t plx = sProfileLeftX, ply = sProfileLeftY, prx = sProfileRightX, pry = sProfileRightY;
+    if (profileLeft || profileRight) { apply_stick_options(&plx, &ply, &prx, &pry); }
+    *outLeftX = profileLeft ? plx : leftx;
+    *outLeftY = profileLeft ? ply : lefty;
+    *outRightX = profileRight ? prx : rightx;
+    *outRightY = profileRight ? pry : righty;
 }
 
 //-----------------------------------------------------------------------------
