@@ -269,6 +269,15 @@ final class GameBridge: ObservableObject {
         }
     }
 
+    /// Clicking the left stick ground-pounds. On, which is the gamepad default.
+    /// Off, so pushing the stick hard into a wall does not break a wall lock.
+    @Published var stickDownGroundPound: Bool = GameBridge.storedFlagOr("mv.stickDownGroundPound", true) {
+        didSet {
+            UserDefaults.standard.set(stickDownGroundPound, forKey: "mv.stickDownGroundPound")
+            mariovision_set_stick_down_ground_pound(stickDownGroundPound)
+        }
+    }
+
     private func storeScheme(_ key: String, _ what: Int32, _ scheme: Scheme) {
         UserDefaults.standard.set(scheme.rawValue, forKey: key)
         mariovision_set_scheme(what, Int32(scheme.rawValue))
@@ -352,6 +361,7 @@ final class GameBridge: ObservableObject {
         mariovision_set_ledge_mode(Int32(ledgeMode.rawValue))
         mariovision_set_hang_mode(Int32(hangMode.rawValue))
         mariovision_set_fly_first_person(flyFirstPerson)
+        mariovision_set_stick_down_ground_pound(stickDownGroundPound)
     }
 
     private static func storedFloat(_ key: String, _ fallback: Float) -> Float {
@@ -455,6 +465,7 @@ final class GameBridge: ObservableObject {
         }
         guard !booted, case .present = RomInstaller.check() else { return }
         booted = true
+        mariovision_set_stick_down_ground_pound(stickDownGroundPound)
         mariovision_boot()
     }
 
