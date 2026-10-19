@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// one thing you change often; everything else lives a level down.
 struct SettingsView: View {
     @ObservedObject var game: GameBridge
+    @AppStorage("mv.silverMetal") private var silverMetal = true
     @State private var showGraphics = false
     @State private var picking = false
     @State private var romMessage: String?
@@ -37,6 +38,22 @@ struct SettingsView: View {
                     NavigationLink("Graphics") {
                         GraphicsSettingsView(game: game)
                     }
+                }
+
+                Section {
+                    Picker("Metal Mario color", selection: $silverMetal) {
+                        Text("Red").tag(false)
+                        Text("Silver").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .onAppear { mariovision_set_silver_metal(silverMetal) }
+                    .onChange(of: silverMetal) { _, value in
+                        mariovision_set_silver_metal(value)
+                    }
+                } header: {
+                    Text("Metal Mario")
+                } footer: {
+                    Text("Changes the metal appearance immediately. Red uses CoopDX’s cap color; Silver uses a neutral metallic color.")
                 }
 
                 Section {

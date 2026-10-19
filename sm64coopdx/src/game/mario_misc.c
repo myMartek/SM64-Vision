@@ -801,10 +801,33 @@ Gfx* geo_mirror_mario_backface_culling(s32 callContext, struct GraphNode* node, 
     return gfx;
 }
 
+#if defined(TARGET_VISIONOS)
+#include <stdatomic.h>
+// Local visual preference, read by the game thread. Starts silver so a
+// launch that never opens Settings still matches the stored default.
+static _Atomic bool sMVSilverMetal = true;
+void mariovision_set_silver_metal(bool enabled) {
+    atomic_store_explicit(&sMVSilverMetal, enabled, memory_order_relaxed);
+}
+#endif
+
 static struct PlayerColor geo_mario_get_player_color(const struct PlayerPalette *palette) {
     struct PlayerColor color = { 0 };
     u8 index = geo_get_processing_object_index();
     struct MarioBodyState* bodyState = &gBodyStates[index];
+#if defined(TARGET_VISIONOS)
+    // METAL aliases CAP, so the metal shade is Mario's cap color (red).
+    // Repaint this render's copy only; the saved palette stays red.
+    struct PlayerPalette metalPalette;
+    if ((bodyState->modelState & MODEL_STATE_METAL) &&
+        atomic_load_explicit(&sMVSilverMetal, memory_order_relaxed)) {
+        metalPalette = *palette;
+        metalPalette.parts[METAL][0] = 255;
+        metalPalette.parts[METAL][1] = 255;
+        metalPalette.parts[METAL][2] = 255;
+        palette = &metalPalette;
+    }
+#endif
     for (s32 part = 0; part != PLAYER_PART_MAX; ++part) {
         color.parts[part] = (Lights1) gdSPDefLights1(
             // Shadow

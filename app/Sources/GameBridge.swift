@@ -455,6 +455,9 @@ final class GameBridge: ObservableObject {
         }
         guard !booted, case .present = RomInstaller.check() else { return }
         booted = true
+        // Apply before the engine starts, including when Settings was never opened.
+        let silverMetal = (UserDefaults.standard.object(forKey: "mv.silverMetal") as? Bool) ?? true
+        mariovision_set_silver_metal(silverMetal)
         mariovision_boot()
     }
 
