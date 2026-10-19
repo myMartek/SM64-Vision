@@ -116,6 +116,19 @@ bool mariovision_take_menu_request(void);
 /// Queued; runs on the game thread at the next frame.
 void mariovision_start_game(void);
 
+/// Starts save file `slot` (1...4), always skipping the intro cutscene.
+/// Queued; runs on the game thread at the next frame.
+void mariovision_start_save(int slot);
+/// Erases save file `slot` (1...4). Queued; runs on the game thread.
+void mariovision_erase_save(int slot);
+/// Star count for a file, or -1 before the engine has published a snapshot.
+/// Safe to call from the UI thread.
+int mariovision_save_stars(int slot);
+/// Whether that file already has progress. Safe to call from the UI thread.
+bool mariovision_save_exists(int slot);
+/// True while an erase is queued or in progress.
+bool mariovision_save_busy(void);
+
 /// The languages the bundle ships, from lang/*.ini.
 /// `key` is the file's own name ("German"), `display` the translated one.
 /// The strings are copied out: the list can be rebuilt on the game thread the

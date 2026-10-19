@@ -24,6 +24,7 @@
 #include "mariovision_levels.h"
 #include "pc/lua/utils/smlua_misc_utils.h"
 
+#include "game/save_file.h"
 #include "pc/configfile.h"
 #include "pc/pc_main.h"
 #include "pc/platform.h"
@@ -200,6 +201,45 @@ enum {
 static _Atomic uint32_t sPendingCommands = 0;
 static _Atomic int sPendingLanguage = -1;
 
+// UI requests are consumed on the game thread. Slots are 1...4.
+static _Atomic int sStartSaveRequest = 0;
+static _Atomic int sEraseSaveRequest = 0;
+static _Atomic bool sSaveBusy = false;
+// -1 means the engine has not published a snapshot yet.
+static _Atomic int sSaveStars[4] = { -1, -1, -1, -1 };
+static _Atomic bool sSaveExists[4] = { false, false, false, false };
+
+int mariovision_save_stars(int slot) {
+    return slot >= 1 && slot <= 4 ? atomic_load(&sSaveStars[slot - 1]) : -1;
+}
+
+bool mariovision_save_exists(int slot) {
+    return slot >= 1 && slot <= 4 && atomic_load(&sSaveExists[slot - 1]);
+}
+
+bool mariovision_save_busy(void) {
+    return atomic_load(&sSaveBusy);
+}
+
+void mariovision_start_save(int slot) {
+    if (slot < 1 || slot > 4) { return; }
+    atomic_store(&sStartSaveRequest, slot);
+    atomic_fetch_or(&sPendingCommands, CMD_START_GAME);
+}
+
+void mariovision_erase_save(int slot) {
+    if (slot < 1 || slot > 4 || atomic_exchange(&sSaveBusy, true)) { return; }
+    atomic_store(&sEraseSaveRequest, slot);
+}
+
+static void publish_save_slots(void) {
+    if (!gGameInited) { return; }
+    for (int i = 0; i < 4; ++i) {
+        atomic_store(&sSaveExists[i], save_file_exists(i) != 0);
+        atomic_store(&sSaveStars[i], save_file_get_total_star_count(i, 0, 24));
+    }
+}
+
 void mariovision_start_game(void) {
     atomic_fetch_or(&sPendingCommands, CMD_START_GAME);
 }
@@ -212,11 +252,18 @@ void mariovision_language_select(int index) {
 static void execute_start_game(void) {
     if (!mariovision_game_ready()) { return; }
 
+    const int slot = atomic_exchange(&sStartSaveRequest, 0);
+    if (slot != 0) {
+        if (slot < 1 || slot > 4) { return; }
+        configHostSaveSlot = (unsigned int)slot;
+    }
+
     // The intro cutscene is skipped unconditionally: with the native UI the
     // Start button is the whole main menu, and coopdx' own "skip intro" option
     // lives in the menu we just replaced. network_init copies this into
     // gServerSettings.skipIntro, which is what level_update.c actually reads,
-    // so it has to be set before do_host.
+    // so it has to be set before do_host. A new file must not play the intro:
+    // the first-person camera does not run that cutscene.
     configSkipIntro = true;
 
     djui_panel_do_host(false, false);
@@ -272,6 +319,17 @@ void mariovision_ui_pump(void) {
         gDjuiDisabled = false;
         sForcedOff = false;
     }
+
+    const int eraseSlot = atomic_exchange(&sEraseSaveRequest, 0);
+    if (eraseSlot != 0) {
+        // Never erase a running session's data, even if a stale UI asks.
+        if (mariovision_game_ready() && eraseSlot >= 1 && eraseSlot <= 4) {
+            save_file_erase(eraseSlot - 1);
+        }
+        publish_save_slots();
+        atomic_store(&sSaveBusy, false);
+    }
+    publish_save_slots();
 
     const uint32_t pending = atomic_exchange(&sPendingCommands, 0);
     if (pending & CMD_APPLY_LANGUAGE) { execute_apply_language(); }

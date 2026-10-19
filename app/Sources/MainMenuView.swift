@@ -147,60 +147,105 @@ struct MainMenuView: View {
     }
 }
 
-/// The main page: the Start button and nothing else. Joining players, mods and
+/// The main page: four save files, then Start. Joining players, mods and
 /// server settings will land here later.
 struct StartTabView: View {
     @ObservedObject var game: GameBridge
     let present: @MainActor () async -> Void
+    @State private var eraseSlot: Int?
+
+    private func letter(_ slot: Int) -> String { ["A", "B", "C", "D"][slot - 1] }
+    private var locked: Bool { game.saveBusy || game.startingSave }
 
     var body: some View {
-        VStack(spacing: 28) {
-            Spacer()
-
-            Text("SM64 Vision")
-                .font(.extraLargeTitle2)
-
-            Group {
-                if game.isRunning && game.windowOpen {
-                    Label("Running", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                } else if game.isReady || game.isRunning {
+        ScrollView {
+            VStack(spacing: 20) {
+                Text("SM64 Vision").font(.largeTitle)
+                if game.isRunning {
+                    Text("Playing File \(letter(game.selectedSaveSlot))")
+                        .font(.title2)
                     Button {
-                        if !game.isRunning { game.startGame() }
                         Task { await present() }
                     } label: {
-                        Label(game.isRunning ? "Resume" : "Start", systemImage: "play.fill")
-                            .font(.title2)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 6)
+                        Label("Resume", systemImage: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
-                } else {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("Loading…")
-                            .foregroundStyle(.secondary)
+                    Text(runningHint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                } else if game.isReady {
+                    Text("Choose a save file").font(.headline)
+                    ForEach(1...4, id: \.self) { slot in
+                        HStack(spacing: 16) {
+                            Button {
+                                game.selectedSaveSlot = slot
+                            } label: {
+                                HStack {
+                                    Image(systemName: game.selectedSaveSlot == slot
+                                          ? "checkmark.circle.fill" : "circle")
+                                    Text("File \(letter(slot))")
+                                    Spacer()
+                                    if game.saveStars[slot - 1] < 0 {
+                                        Text("Loading…")
+                                    } else if game.saveExists[slot - 1] {
+                                        Label("\(game.saveStars[slot - 1])", systemImage: "star.fill")
+                                    } else {
+                                        Text("New game")
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .disabled(locked || game.demoMode || game.saveStars[slot - 1] < 0)
+                            Button(role: .destructive) { eraseSlot = slot } label: {
+                                Image(systemName: "trash")
+                            }
+                            .accessibilityLabel("Erase File \(letter(slot))")
+                            .disabled(locked || game.demoMode || !game.saveExists[slot - 1])
+                        }
                     }
+                    Button {
+                        game.startGame()
+                        Task { await present() }
+                    } label: {
+                        Label(game.startingSave ? "Starting…" : "Start File \(letter(game.selectedSaveSlot))",
+                              systemImage: "play.fill")
+                            .font(.title2)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(locked || (!game.demoMode && game.saveStars.contains(-1)))
+                    Text(String(localized: "Starts straight into the castle and skips the intro. This window closes as it does — the menu button on the controller brings it back."))
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    ProgressView("Loading…")
                 }
             }
-
-            Text(hint)
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-
-            Spacer()
+            .frame(maxWidth: 500)
+            .padding(28)
+            .frame(maxWidth: .infinity)
         }
-        .padding(32)
+        .alert("Erase File \(letter(eraseSlot ?? 1))?", isPresented: Binding(
+            get: { eraseSlot != nil },
+            set: { if !$0 { eraseSlot = nil } }
+        )) {
+            Button("Erase", role: .destructive) {
+                if let slot = eraseSlot { game.eraseSave(slot) }
+                eraseSlot = nil
+            }
+            Button("Cancel", role: .cancel) { eraseSlot = nil }
+        } message: {
+            Text("This permanently deletes the stars and progress in this file. The other three files are unchanged.")
+        }
     }
 
-    private var hint: String {
-        if game.isRunning && !game.windowOpen {
-            // The game deliberately keeps running with nothing showing it, so
-            // say so - otherwise a closed window looks like a lost session.
-            return String(format: String(localized: "The game keeps running, you just can\'t see it. “Resume” brings it back as %@."), game.renderMode.title)
-        }
-        return String(localized: "Starts straight into the castle and skips the intro. This window closes as it does — the menu button on the controller brings it back.")
+    private var runningHint: String {
+        let switchFiles = String(localized: "To choose another file, quit SM64 Vision and reopen it. Closing just the game window keeps this session running.")
+        guard !game.windowOpen else { return switchFiles }
+        // The game deliberately keeps running with nothing showing it, so
+        // say so - otherwise a closed window looks like a lost session.
+        let hidden = String(format: String(localized: "The game keeps running, you just can\'t see it. “Resume” brings it back as %@."), game.renderMode.title)
+        return hidden + " " + switchFiles
     }
 }
