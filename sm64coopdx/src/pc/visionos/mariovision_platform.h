@@ -132,6 +132,11 @@ void mariovision_language_select(int index);
 /// Called by the window backend once per game iteration - not from the app.
 void mariovision_ui_pump(void);
 
+/// Clicking the left stick ground-pounds. That is the default gamepad bind for
+/// Z. Off, a hard push into a wall does not pound. Shoulder and trigger binds
+/// for Z are unchanged.
+void mariovision_set_stick_down_ground_pound(bool on);
+
 #ifdef __cplusplus
 }
 #endif

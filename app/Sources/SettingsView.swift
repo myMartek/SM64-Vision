@@ -171,6 +171,15 @@ struct ControlsSettingsView: View {
             } header: {
                 Text("Flying")
             }
+
+            Section {
+                Toggle("Ground pound with stick down", isOn: $game.stickDownGroundPound)
+                Text("Clicking the left stick ground-pounds, which is how a gamepad does it by default. Off, so pushing the stick hard into a wall does not pound and drop a wall lock. Z on a shoulder or trigger is unchanged.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Ground pound")
+            }
         }
         .navigationTitle("Controls")
     }

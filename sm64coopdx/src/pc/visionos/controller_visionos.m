@@ -15,6 +15,7 @@
 #import <GameController/GameController.h>
 
 #include <math.h>
+#include <stdatomic.h>
 #include <string.h>
 
 #include "pc/controller/controller_api.h"
@@ -57,6 +58,24 @@ static uint32_t sLastPressed = VK_INVALID;
 // [button index, N64 button mask], rebuilt from configfile by reconfig().
 static uint32_t sJoyBinds[MAX_JOY_BINDS][2];
 static uint32_t sNumJoyBinds = 0;
+
+// Clicking the left stick is the default gamepad bind for Z (ground pound).
+// On, matching that default. Off, a hard push into a wall does not click into
+// a pound. Shoulder and trigger binds for Z are left alone.
+static atomic_bool sStickDownGroundPound = true;
+
+void mariovision_set_stick_down_ground_pound(bool on) {
+    atomic_store(&sStickDownGroundPound, on);
+}
+
+static bool joy_bind_fires(uint32_t index) {
+    if (!sButtons[sJoyBinds[index][0]]) { return false; }
+    if (sJoyBinds[index][1] == Z_TRIG && sJoyBinds[index][0] == SDL_BTN_LEFTSTICK
+        && !atomic_load(&sStickDownGroundPound)) {
+        return false;
+    }
+    return true;
+}
 
 static GCController *sController;
 
@@ -480,7 +499,7 @@ static void read_gamepad(OSContPad *pad, int16_t *outLeftX, int16_t *outLeftY,
 
     uint32_t buttons_down = 0;
     for (uint32_t i = 0; i < sNumJoyBinds; i++) {
-        if (sButtons[sJoyBinds[i][0]]) { buttons_down |= sJoyBinds[i][1]; }
+        if (joy_bind_fires(i)) { buttons_down |= sJoyBinds[i][1]; }
     }
     pad->button |= buttons_down;
 
@@ -767,7 +786,7 @@ static void read_spatial(OSContPad *pad, int16_t *outLeftX, int16_t *outLeftY,
     // session with tracked controllers.
     uint32_t buttons_down = 0;
     for (uint32_t i = 0; i < sNumJoyBinds; i++) {
-        if (sButtons[sJoyBinds[i][0]]) { buttons_down |= sJoyBinds[i][1]; }
+        if (joy_bind_fires(i)) { buttons_down |= sJoyBinds[i][1]; }
     }
     pad->button |= buttons_down;
 }
